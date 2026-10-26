@@ -1,0 +1,166 @@
+{% extends "chat/base.html" %}
+
+{% block title %}{{ conversation.title }}{% endblock %}
+
+{% block content %}
+<div class="content">
+    <a href="{% url 'chat:home' %}" style="color: #4CAF50;">← Retour</a>
+    <h2 style="margin-top: 20px;">{{ conversation.title }}</h2>
+    
+    <!-- Zone des messages -->
+    <div id="messages" class="messages">
+        {% include "chat/partials/messages.html" with messages=messages %}
+    </div>
+    
+    <!-- Indicateur de chargement (caché par défaut, affiché par HTMX) -->
+    <div id="loader" class="loader htmx-indicator">
+        ⏳ Recherche en cours...
+    </div>
+
+    <!-- Formulaire HTMX -->
+    <!-- <form 
+        hx-post="{% url 'chat:ask' conversation.id %}"
+        hx-target="#messages"
+        hx-swap="beforeend"
+        hx-indicator="#loader"
+        hx-on::after-request="this.reset(); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;"
+        class="ask-form"
+    >
+        {% csrf_token %}
+        <input 
+            type="text" 
+            name="question" 
+            placeholder="Posez votre question..." 
+            autocomplete="off"
+            required
+        >
+        <button type="submit">Envoyer</button>
+    </form> -->
+
+    <!-- Formulaire -->
+    <form id="ask-form" class="ask-form">
+        {% csrf_token %}
+        <input 
+            type="text" 
+            name="question" 
+            placeholder="Posez votre question..." 
+            autocomplete="off"
+            required
+        >
+        <button type="submit">Envoyer</button>
+    </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const form = document.getElementById("ask-form");
+const messagesDiv = document.getElementById("messages");
+const loader = document.getElementById("loader");
+const input = form.querySelector("input[name=question]");
+const csrfToken = form.querySelector("[name=csrfmiddlewaretoken]").value;
+
+let currentAssistantDiv = null;
+
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const question = input.value.trim();
+    if (!question) return;
+    
+    // Désactiver le formulaire
+    input.disabled = true;
+    form.querySelector("button").disabled = true;
+    loader.style.display = "block";
+    
+    // Ajouter la question à l'affichage
+    messagesDiv.innerHTML += `
+        <div class="message user">
+            <div class="message-content">${escapeHtml(question)}</div>
+        </div>
+    `;
+    
+    // Créer le bloc pour la réponse
+    currentAssistantDiv = document.createElement("div");
+    currentAssistantDiv.className = "message assistant";
+    currentAssistantDiv.innerHTML = '<div class="message-content"></div>';
+    messagesDiv.appendChild(currentAssistantDiv);
+    
+    input.value = "";
+    scrollToBottom();
+    
+    // Envoyer la requête avec SSE
+    try {
+        const response = await fetch(
+            "{% url 'chat:ask_stream' conversation.id %}",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: `question=${encodeURIComponent(question)}`,
+            }
+        );
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            
+            // Traiter les événements SSE complets
+            const lines = buffer.split("\n\n");
+            buffer = lines.pop();  // Garder le dernier (incomplet)
+            
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.type === "chunk") {
+                    const contentDiv = currentAssistantDiv.querySelector(".message-content");
+                    contentDiv.textContent += data.content;
+                    scrollToBottom();
+                } else if (data.type === "done") {
+                    loader.style.display = "none";
+                } else if (data.type === "error") {
+                    // Afficher l'erreur dans le bloc de la réponse
+                    currentAssistantDiv.querySelector(".message-content").innerHTML = 
+                        `<span style="color: #c62828;">❌ ${data.content}</span>`;
+                    loader.style.display = "none";
+                    input.disabled = false;
+                    form.querySelector("button").disabled = false;
+                }
+            }
+        }
+    } catch (error) {
+        loader.style.display = "none";
+        if (currentAssistantDiv) {
+            currentAssistantDiv.querySelector(".message-content").textContent = 
+                "❌ Erreur de connexion";
+        }
+    } finally {
+        input.disabled = false;
+        form.querySelector("button").disabled = false;
+        input.focus();
+        scrollToBottom();
+    }
+});
+
+function scrollToBottom() {
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

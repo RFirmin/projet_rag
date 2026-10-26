@@ -1,0 +1,31 @@
+# Framework
+Django>=5.0
+
+# Base de données
+psycopg2-binary>=2.9
+pgvector>=0.4
+
+# Configuration
+python-dotenv>=1.0
+
+# Pipeline RAG (dépendances)
+pymupdf==1.28.2
+pymupdf4llm==1.28.2
+pandas==3.0.6
+openpyxl==3.1.5
+python-docx==1.2.0
+tabulate==0.10.0
+
+# OCR
+easyocr==1.7.2
+opencv-python==5.0.0.93
+Pillow==12.3.0
+numpy==2.5.3
+
+# Embedding & Reranking
+sentence-transformers==6.1.0
+torch==2.14.0
+transformers==5.17.0
+
+# LLM
+groq==1.7.0

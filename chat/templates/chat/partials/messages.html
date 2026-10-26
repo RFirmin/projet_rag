@@ -1,0 +1,7 @@
+{% for msg in messages %}
+    <div class="message {{ msg.role }}">
+        <div class="message-content">
+            {{ msg.content|linebreaks }}
+        </div>
+    </div>
+{% endfor %}

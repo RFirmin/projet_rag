@@ -1,0 +1,26 @@
+{% extends "chat/base.html" %}
+
+{% block title %}Mes conversations{% endblock %}
+
+{% block content %}
+<div class="content">
+    <a href="{% url 'chat:new_conversation' %}" class="btn">+ Nouvelle conversation</a>
+
+    <h2 style="margin-top: 30px;">Mes conversations</h2>
+
+    {% if conversation %}
+        <ul class="conversation-list">
+            {% for conv in conversation %}
+                <li class="conversation-item">
+                    <a href="{% url 'chat:conversation_detail' conv.id %}">
+                        <strong>{{ conv.title }}</strong><br>
+                        <small>{{ conv.messages.count }} messages - {{ conv.updated_at|date:"d\m\y H:i" }}</small>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p style="margin-top: 20px; color: #888;">Aucune conversation, Creez-en une !</p>
+    {% endif %}
+</div>
+{% endblock %}

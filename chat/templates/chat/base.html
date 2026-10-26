@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Assistant RAG{% endblock %}</title>
+
+        <!-- HTMX -->
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    
+        <!-- CSS -->
+        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+        {% block extra_css %}{% endblock %}
+    </head>
+    <body>
+        <div class="header">
+            <div class="container">
+                <h1>🤖 Assistant RAG</h1>
+                {% if user.is_authenticated %}
+                    <p>Connecte en tant que {{ user.username }} | 
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit">Déconnexion</button>
+                        </form></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="container full-height">
+            {% block content %}{% endblock %}
+        </div>
+
+        {% block extra_js %}{% endblock %}
+
+    </body>
+</html>
