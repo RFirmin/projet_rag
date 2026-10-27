@@ -509,7 +509,7 @@ templates/
 ├── conversation.html      # Vue d'une conversation
 └── partials/
     └── messages.html      # Fragment réutilisable
-```
+
 **Raison** :
 - `base.html` : évite la duplication (header, CSS, HTMX)
 - `partials/` : fragments utilisés par HTMX
@@ -689,6 +689,69 @@ SECURE_HSTS_PRELOAD = True
 **Impact** : Projet documenté, transmissible.
 
 ---
+
+## Phase 16 : Gestion avancée des documents (Data Engineering)
+
+### D52 — Création d'un pipeline de nettoyage (ETL)
+**Date** : 2026-10-26
+**Contexte** : Les documents Canal+ (PDF) posaient des problèmes d'indexation (tableaux mal formatés, balises `<br/>` résiduelles, caractères invisibles).
+**Décision** : Créer un script Python (`clean_canal_channels.py`) pour transformer les PDF bruts en fichiers `.md` propres et structurés.
+**Raison** : Le RAG ne doit pas lire les tableaux bruts. Il a besoin de phrases linéaires et sémantiques (ex: "La chaîne CRTV est de genre Généraliste...").
+**Impact** : Amélioration drastique des scores de rerank (passage de 0.2 à 1.0 sur les requêtes ciblées).
+
+### D53 — Normalisation du format d'entrée
+**Date** : 2026-10-26
+**Décision** : Privilégier les fichiers `.md` ou `.txt` nettoyés plutôt que les PDF ou Excel bruts pour les données complexes.
+**Impact** : Le pipeline d'extraction a été mis à jour pour accepter nativement les fichiers `.md` (les traitant comme du texte).
+
+---
+
+## Phase 17 : Tests de robustesse et Comportement du LLM
+
+### D54 — Résultats des tests de robustesse
+**Date** : 2026-10-27
+**Contexte** : Tests sur les documents Canal+ nettoyés (fausses prémisses, hors sujet, croisement de données).
+**Décisions/Constats** :
+- Le LLM **ne succombe pas aux fausses prémisses** (ex: il a démenti que CRTV était uniquement dans TOUT CANAL+).
+- Le LLM **refuse de répondre** quand l'information n'est pas dans le contexte (pas d'hallucination).
+- **Limite identifiée** : Le croisement d'informations entre deux documents distincts (ex: le genre dans le Guide + la formule dans le Tableau Excel) reste complexe pour une recherche vectorielle simple.
+
+---
+
+## Phase 18 : Architecture du projet et Gestion des versions
+
+### D55 — Séparation des environnements (Console vs Django)
+**Date** : 2026-10-27
+**Décision** : Maintenir deux versions distinctes du système.
+1.  **Version Console / Streamlit** : Pour les tests rapides, l'analyse de données, et les prototypes.
+2.  **Version Django** : Pour l'application web finale, la gestion des utilisateurs et le déploiement.
+**Impact** : Les deux versions partagent le même moteur (`rag/`), mais ont leur propre documentation (`README.md`) et leur propre mode d'exécution.
+
+### D56 — Unification du journal de décisions
+**Date** : 2026-10-27
+**Décision** : Le fichier `DECISIONS.md` est unique et centralise toutes les décisions techniques du moteur RAG, indépendamment de l'interface (Console, Streamlit ou Django) qui l'utilise.
+
+### D57 — Adoption de `uv` pour la gestion des dépendances
+**Date** : 2026-10-27
+**Décision** : Utiliser `uv` au lieu de `pip` pour la gestion des paquets et des environnements virtuels.
+**Raison** :
+- Vitesse d'installation nettement supérieure (crucial avec PyTorch et sentence-transformers).
+- Génération d'un fichier `uv.lock` garantissant la reproductibilité exacte des environnements.
+- Simplification des commandes (`uv add`, `uv sync`).
+**Impact** : Le déploiement futur sera plus fiable et plus rapide.
+
+---
+
+## Phase 19 : Documentations et Perspectives
+
+### D58 — Nécessité d'une documentation technique
+**Date** : 2026-10-27
+**Contexte** : Distinguer le `README.md` (installation/utilisation) de la documentation technique (architecture, API interne, base de données).
+**Décision** : Prévoir la création d'un dossier `docs/` contenant des fichiers comme `architecture.md`, `pipeline.md`, et `django_models.md`.
+
+### D59 — Préparation au déploiement (Rappel)
+**Date** : 2026-10-27
+**Décision** : Le déploiement se fera via Docker (Gunicorn + Nginx + Certbot pour le HTTPS). L'accent sera mis sur la sécurité (isolation des conversations, gestion des secrets, rate limiting).
 
 ## Résumé des principes directeurs (mis à jour)
 
