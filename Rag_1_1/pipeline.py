@@ -199,7 +199,7 @@ class RAGPipeline:
         min_chunks: int = 3,
         translate: bool = True,
         filter_by_source: Optional[str] = None,
-        # conversation_history: Optional[str] = None,
+        conversation_history: Optional[str] = None,
     ) -> Dict:
         """
         Répond à une question en utilisant le pipeline RAG complet.
@@ -233,22 +233,57 @@ class RAGPipeline:
         original_question = question
         image_text = None
 
-        # 1. Extraction d'image (si fournie)
+        # 1. Extraction d'image
+        image_text = None
         if image_file is not None:
             print(f"\n📷 Extraction du texte de l'image...")
             results = extract_text_with_all_methods(image_file)
             image_text = results["best_text"]
+            
+            # --- NOUVELLE LOGIQUE DE DÉTECTION D'INTENTION ---
+            question_lower = question.lower()
+            
+            # Mots-clés qui indiquent qu'on veut juste lire l'image
+            # image_only_keywords = [
+            #     "contenu de l'image", "dit l'image", "montre l'image", 
+            #     "ce message", "cette erreur", "que vois-tu", "décris", 
+            #     "explique l'image", "lis l'image", "que dit", "traduis"
+            # ]
+            
+            # is_image_only = any(kw in question_lower for kw in image_only_keywords) or len(question.split()) < 4
+            
+            # Mots-clés individuels (plus robustes)
+            image_only_keywords = [
+                "image", "photo", "capture", "erreur", "message", 
+                "décris", "explique", "lis", "vois", "traduis", "contenu"
+            ]
+            
+            # On vérifie si un des mots est présent
+            is_image_only = any(kw in question_lower for kw in image_only_keywords) or len(question.split()) < 4
 
-            # Limiter la taille
-            if len(image_text) > 2000:
-                image_text = image_text[:2000]
-
-            # Fusionner avec la question
-            question = (
-                f"{question}\n\n"
-                f"[Texte extrait de l'image fournie par l'utilisateur :]\n"
-                f"{image_text}"
-            )
+            if is_image_only:
+                print("  ⚡ Mode Image Uniquement (Court-circuit RAG)")
+                # On ne cherche PAS dans les chunks, on envoie juste l'image au LLM
+                # On construit un prompt avec un contexte vide et l'image
+                prompt = build_prompt(
+                    question=question, 
+                    chunks=[], # Pas de chunks de la base
+                    conversation_history=conversation_history,
+                    image_context=image_text 
+                )
+                answer = generate_answer(prompt, groq_client)
+                return {"answer": answer, "sources": [], "original_question": original_question}
+            
+            else:
+                print("  🔄 Mode Hybride (Image + RAG)")
+                # Si l'image sert de contexte (ex: une photo de chaîne), on l'ajoute à la question
+                # pour que la recherche vectorielle trouve des infos sur cette chaîne.
+                
+                # Limiter la taille
+                if len(image_text) > 2000:
+                    image_text = image_text[:2000]
+                
+                question = f"{question}\n\n[Contexte de l'image : {image_text}]"
 
         # 2. Traduction
         if translate:
@@ -282,7 +317,7 @@ class RAGPipeline:
         logger.debug(f"Reranking terminé : {len(reranked)} chunks retenus")
 
         # 7. NOUVEAU : Agréger les chunks si nécessaire
-        # reranked = aggregate_chunks_by_entity(reranked, original_question)
+        reranked = aggregate_chunks_by_entity(reranked, original_question)
 
         # 7. Prompt
         prompt = build_prompt(

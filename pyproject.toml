@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "django>=5.0",
+    "django-ratelimit>=4.1.0",  
+    "django-redis>=5.4.0",
     "django-allauth-ui>=1.8.1",
     "django-allauth[socialaccount]>=65.20.0",
     "easyocr==1.7.2",
@@ -22,15 +24,25 @@ dependencies = [
     "python-docx==1.2.0",
     "python-dotenv>=1.0",
     "requests>=2.34.2",
-    "sentence-transformers==6.1.0",
+    "sentence-transformers==5.2.1",
     "tabulate==0.10.0",
     "torch==2.14.0",
-    "transformers==5.17.0",
+    "transformers==4.57.6",
+    "kernels>=0.4.0",
+    "huggingface_hub>=0.27,<1.0",
+    "torchvision", 
+    "gunicorn>=22.0.0",
 ]
 
-[project.scripts]
-projet-rag = "projet_rag:main"
+[tool.uv]
+package = false
 
-[build-system]
-requires = ["uv_build>=0.13.1,<0.14.0"]
-build-backend = "uv_build"
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

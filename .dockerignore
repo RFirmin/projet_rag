@@ -1,0 +1,18 @@
+# .dockerignore
+.venv/
+.venv_projet_rag/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.git/
+.gitignore
+.vscode/
+.idea/
+staticfiles/
+media/
+logs/
+*.sqlite3
+*.json
